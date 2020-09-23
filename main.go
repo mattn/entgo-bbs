@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"log"
+	"net/http"
 
+	"github.com/labstack/echo"
 	"github.com/mattn/entgo-bbs/ent"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -23,4 +25,13 @@ func main() {
 	if err := client.Schema.Create(context.Background()); err != nil {
 		log.Fatalf("failed creating schema resources: %v", err)
 	}
+
+	e := echo.New()
+	e.GET("/", func(c echo.Context) error {
+		return c.String(http.StatusOK, "")
+	})
+	e.POST("/add", func(c echo.Context) error {
+		return c.String(http.StatusOK, "")
+	})
+	e.Logger.Fatal(e.Start(":8989"))
 }
