@@ -7,7 +7,9 @@ import (
 
 	"github.com/labstack/echo"
 	"github.com/mattn/entgo-bbs/ent"
+	"github.com/mattn/entgo-bbs/ent/entry"
 
+	"github.com/mattn/go-slim"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -26,12 +28,28 @@ func main() {
 		log.Fatalf("failed creating schema resources: %v", err)
 	}
 
+	t, err := slim.ParseFile("template/index.slim")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	e := echo.New()
 	e.GET("/", func(c echo.Context) error {
-		return c.String(http.StatusOK, "")
+		eq := client.Entry.Query().Order(ent.Desc(entry.FieldCreatedAt)).Limit(10)
+		entries := eq.AllX(context.Background())
+		c.Request().Header.Set("content-type", "text/html")
+		return t.Execute(c.Response(), map[string]interface{}{
+			"entries": entries,
+		})
 	})
 	e.POST("/add", func(c echo.Context) error {
-		return c.String(http.StatusOK, "")
+		e := client.Entry.Create()
+		e.SetContent(c.FormValue("content"))
+		if _, err := e.Save(context.Background()); err != nil {
+			log.Println(err.Error())
+			return c.String(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
+		}
+		return c.Redirect(http.StatusFound, "/")
 	})
 	e.Logger.Fatal(e.Start(":8989"))
 }
