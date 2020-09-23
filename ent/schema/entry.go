@@ -1,6 +1,11 @@
 package schema
 
-import "github.com/facebook/ent"
+import (
+	"time"
+
+	"github.com/facebook/ent"
+	"github.com/facebook/ent/schema/field"
+)
 
 // Entry holds the schema definition for the Entry entity.
 type Entry struct {
@@ -9,7 +14,15 @@ type Entry struct {
 
 // Fields of the Entry.
 func (Entry) Fields() []ent.Field {
-	return nil
+	return []ent.Field{
+		field.String("content").
+			Default(""),
+		field.Time("created_at").
+			Default(func() time.Time {
+				return time.Now()
+			}),
+	}
+
 }
 
 // Edges of the Entry.
