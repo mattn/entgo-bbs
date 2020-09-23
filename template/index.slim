@@ -1,0 +1,12 @@
+doctype 5
+html lang="ja"
+  head
+    meta charset="UTF-8"
+    title
+  body
+    form method=post action=add
+      input type=text name=content
+      input type=submit
+    ul
+      - for x in entries
+        li = x.Content
