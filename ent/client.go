@@ -11,8 +11,8 @@ import (
 
 	"github.com/mattn/entgo-bbs/ent/entry"
 
-	"github.com/facebook/ent/dialect"
-	"github.com/facebook/ent/dialect/sql"
+	"entgo.io/ent/dialect"
+	"entgo.io/ent/dialect/sql"
 )
 
 // Client is the client that holds all ent builders.
@@ -62,9 +62,10 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	}
 	tx, err := newTx(ctx, c.driver)
 	if err != nil {
-		return nil, fmt.Errorf("ent: starting a transaction: %v", err)
+		return nil, fmt.Errorf("ent: starting a transaction: %w", err)
 	}
-	cfg := config{driver: tx, log: c.log, debug: c.debug, hooks: c.hooks}
+	cfg := c.config
+	cfg.driver = tx
 	return &Tx{
 		ctx:    ctx,
 		config: cfg,
@@ -72,16 +73,19 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	}, nil
 }
 
-// BeginTx returns a transactional client with options.
+// BeginTx returns a transactional client with specified options.
 func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	if _, ok := c.driver.(*txDriver); ok {
 		return nil, fmt.Errorf("ent: cannot start a transaction within a transaction")
 	}
-	tx, err := c.driver.(*sql.Driver).BeginTx(ctx, opts)
+	tx, err := c.driver.(interface {
+		BeginTx(context.Context, *sql.TxOptions) (dialect.Tx, error)
+	}).BeginTx(ctx, opts)
 	if err != nil {
-		return nil, fmt.Errorf("ent: starting a transaction: %v", err)
+		return nil, fmt.Errorf("ent: starting a transaction: %w", err)
 	}
-	cfg := config{driver: &txDriver{tx: tx, drv: c.driver}, log: c.log, debug: c.debug, hooks: c.hooks}
+	cfg := c.config
+	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
 		config: cfg,
 		Entry:  NewEntryClient(cfg),
@@ -99,7 +103,8 @@ func (c *Client) Debug() *Client {
 	if c.debug {
 		return c
 	}
-	cfg := config{driver: dialect.Debug(c.driver, c.log), log: c.log, debug: true, hooks: c.hooks}
+	cfg := c.config
+	cfg.driver = dialect.Debug(c.driver, c.log)
 	client := &Client{config: cfg}
 	client.init()
 	return client
@@ -138,7 +143,7 @@ func (c *EntryClient) Create() *EntryCreate {
 	return &EntryCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
-// BulkCreate returns a builder for creating a bulk of Entry entities.
+// CreateBulk returns a builder for creating a bulk of Entry entities.
 func (c *EntryClient) CreateBulk(builders ...*EntryCreate) *EntryCreateBulk {
 	return &EntryCreateBulk{config: c.config, builders: builders}
 }
@@ -182,7 +187,9 @@ func (c *EntryClient) DeleteOneID(id int) *EntryDeleteOne {
 
 // Query returns a query builder for Entry.
 func (c *EntryClient) Query() *EntryQuery {
-	return &EntryQuery{config: c.config}
+	return &EntryQuery{
+		config: c.config,
+	}
 }
 
 // Get returns a Entry entity by its id.

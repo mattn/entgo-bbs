@@ -15,7 +15,6 @@ const (
 	FieldContent = "content"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
-
 	// Table holds the table name of the entry in the database.
 	Table = "entries"
 )
@@ -38,8 +37,8 @@ func ValidColumn(column string) bool {
 }
 
 var (
-	// DefaultContent holds the default value on creation for the content field.
+	// DefaultContent holds the default value on creation for the "content" field.
 	DefaultContent string
-	// DefaultCreatedAt holds the default value on creation for the created_at field.
+	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 )

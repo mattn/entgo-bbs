@@ -3,7 +3,7 @@
 package predicate
 
 import (
-	"github.com/facebook/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql"
 )
 
 // Entry is the predicate function for entry builders.

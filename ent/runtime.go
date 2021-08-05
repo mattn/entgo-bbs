@@ -9,8 +9,8 @@ import (
 	"github.com/mattn/entgo-bbs/ent/schema"
 )
 
-// The init function reads all schema descriptors with runtime
-// code (default values, validators or hooks) and stitches it
+// The init function reads all schema descriptors with runtime code
+// (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
 	entryFields := schema.Entry{}.Fields()

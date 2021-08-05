@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/facebook/ent/dialect/sql/sqlgraph"
-	"github.com/facebook/ent/schema/field"
+	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/schema/field"
 	"github.com/mattn/entgo-bbs/ent/entry"
 )
 
@@ -20,13 +20,13 @@ type EntryCreate struct {
 	hooks    []Hook
 }
 
-// SetContent sets the content field.
+// SetContent sets the "content" field.
 func (ec *EntryCreate) SetContent(s string) *EntryCreate {
 	ec.mutation.SetContent(s)
 	return ec
 }
 
-// SetNillableContent sets the content field if the given value is not nil.
+// SetNillableContent sets the "content" field if the given value is not nil.
 func (ec *EntryCreate) SetNillableContent(s *string) *EntryCreate {
 	if s != nil {
 		ec.SetContent(*s)
@@ -34,13 +34,13 @@ func (ec *EntryCreate) SetNillableContent(s *string) *EntryCreate {
 	return ec
 }
 
-// SetCreatedAt sets the created_at field.
+// SetCreatedAt sets the "created_at" field.
 func (ec *EntryCreate) SetCreatedAt(t time.Time) *EntryCreate {
 	ec.mutation.SetCreatedAt(t)
 	return ec
 }
 
-// SetNillableCreatedAt sets the created_at field if the given value is not nil.
+// SetNillableCreatedAt sets the "created_at" field if the given value is not nil.
 func (ec *EntryCreate) SetNillableCreatedAt(t *time.Time) *EntryCreate {
 	if t != nil {
 		ec.SetCreatedAt(*t)
@@ -164,7 +164,7 @@ func (ec *EntryCreate) createSpec() (*Entry, *sqlgraph.CreateSpec) {
 	return _node, _spec
 }
 
-// EntryCreateBulk is the builder for creating a bulk of Entry entities.
+// EntryCreateBulk is the builder for creating many Entry entities in bulk.
 type EntryCreateBulk struct {
 	config
 	builders []*EntryCreate
@@ -222,7 +222,7 @@ func (ecb *EntryCreateBulk) Save(ctx context.Context) ([]*Entry, error) {
 	return nodes, nil
 }
 
-// SaveX calls Save and panics if Save returns an error.
+// SaveX is like Save, but panics if an error occurs.
 func (ecb *EntryCreateBulk) SaveX(ctx context.Context) []*Entry {
 	v, err := ecb.Save(ctx)
 	if err != nil {

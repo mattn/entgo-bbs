@@ -6,9 +6,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/facebook/ent/dialect/sql"
-	"github.com/facebook/ent/dialect/sql/sqlgraph"
-	"github.com/facebook/ent/schema/field"
+	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/schema/field"
 	"github.com/mattn/entgo-bbs/ent/entry"
 	"github.com/mattn/entgo-bbs/ent/predicate"
 )
@@ -16,14 +16,13 @@ import (
 // EntryDelete is the builder for deleting a Entry entity.
 type EntryDelete struct {
 	config
-	hooks      []Hook
-	mutation   *EntryMutation
-	predicates []predicate.Entry
+	hooks    []Hook
+	mutation *EntryMutation
 }
 
-// Where adds a new predicate to the delete builder.
+// Where adds a new predicate to the EntryDelete builder.
 func (ed *EntryDelete) Where(ps ...predicate.Entry) *EntryDelete {
-	ed.predicates = append(ed.predicates, ps...)
+	ed.mutation.predicates = append(ed.mutation.predicates, ps...)
 	return ed
 }
 
@@ -75,7 +74,7 @@ func (ed *EntryDelete) sqlExec(ctx context.Context) (int, error) {
 			},
 		},
 	}
-	if ps := ed.predicates; len(ps) > 0 {
+	if ps := ed.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
 				ps[i](selector)

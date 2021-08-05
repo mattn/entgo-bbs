@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/facebook/ent/dialect/sql"
-	"github.com/facebook/ent/dialect/sql/sqlgraph"
-	"github.com/facebook/ent/schema/field"
+	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/schema/field"
 	"github.com/mattn/entgo-bbs/ent/entry"
 	"github.com/mattn/entgo-bbs/ent/predicate"
 )
@@ -20,15 +20,16 @@ type EntryQuery struct {
 	config
 	limit      *int
 	offset     *int
+	unique     *bool
 	order      []OrderFunc
-	unique     []string
+	fields     []string
 	predicates []predicate.Entry
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
 }
 
-// Where adds a new predicate for the builder.
+// Where adds a new predicate for the EntryQuery builder.
 func (eq *EntryQuery) Where(ps ...predicate.Entry) *EntryQuery {
 	eq.predicates = append(eq.predicates, ps...)
 	return eq
@@ -46,13 +47,21 @@ func (eq *EntryQuery) Offset(offset int) *EntryQuery {
 	return eq
 }
 
+// Unique configures the query builder to filter duplicate records on query.
+// By default, unique is set to true, and can be disabled using this method.
+func (eq *EntryQuery) Unique(unique bool) *EntryQuery {
+	eq.unique = &unique
+	return eq
+}
+
 // Order adds an order step to the query.
 func (eq *EntryQuery) Order(o ...OrderFunc) *EntryQuery {
 	eq.order = append(eq.order, o...)
 	return eq
 }
 
-// First returns the first Entry entity in the query. Returns *NotFoundError when no entry was found.
+// First returns the first Entry entity from the query.
+// Returns a *NotFoundError when no Entry was found.
 func (eq *EntryQuery) First(ctx context.Context) (*Entry, error) {
 	nodes, err := eq.Limit(1).All(ctx)
 	if err != nil {
@@ -73,7 +82,8 @@ func (eq *EntryQuery) FirstX(ctx context.Context) *Entry {
 	return node
 }
 
-// FirstID returns the first Entry id in the query. Returns *NotFoundError when no id was found.
+// FirstID returns the first Entry ID from the query.
+// Returns a *NotFoundError when no Entry ID was found.
 func (eq *EntryQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
 	if ids, err = eq.Limit(1).IDs(ctx); err != nil {
@@ -86,8 +96,8 @@ func (eq *EntryQuery) FirstID(ctx context.Context) (id int, err error) {
 	return ids[0], nil
 }
 
-// FirstXID is like FirstID, but panics if an error occurs.
-func (eq *EntryQuery) FirstXID(ctx context.Context) int {
+// FirstIDX is like FirstID, but panics if an error occurs.
+func (eq *EntryQuery) FirstIDX(ctx context.Context) int {
 	id, err := eq.FirstID(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -95,7 +105,9 @@ func (eq *EntryQuery) FirstXID(ctx context.Context) int {
 	return id
 }
 
-// Only returns the only Entry entity in the query, returns an error if not exactly one entity was returned.
+// Only returns a single Entry entity found by the query, ensuring it only returns one.
+// Returns a *NotSingularError when exactly one Entry entity is not found.
+// Returns a *NotFoundError when no Entry entities are found.
 func (eq *EntryQuery) Only(ctx context.Context) (*Entry, error) {
 	nodes, err := eq.Limit(2).All(ctx)
 	if err != nil {
@@ -120,7 +132,9 @@ func (eq *EntryQuery) OnlyX(ctx context.Context) *Entry {
 	return node
 }
 
-// OnlyID returns the only Entry id in the query, returns an error if not exactly one id was returned.
+// OnlyID is like Only, but returns the only Entry ID in the query.
+// Returns a *NotSingularError when exactly one Entry ID is not found.
+// Returns a *NotFoundError when no entities are found.
 func (eq *EntryQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
 	if ids, err = eq.Limit(2).IDs(ctx); err != nil {
@@ -163,7 +177,7 @@ func (eq *EntryQuery) AllX(ctx context.Context) []*Entry {
 	return nodes
 }
 
-// IDs executes the query and returns a list of Entry ids.
+// IDs executes the query and returns a list of Entry IDs.
 func (eq *EntryQuery) IDs(ctx context.Context) ([]int, error) {
 	var ids []int
 	if err := eq.Select(entry.FieldID).Scan(ctx, &ids); err != nil {
@@ -215,15 +229,17 @@ func (eq *EntryQuery) ExistX(ctx context.Context) bool {
 	return exist
 }
 
-// Clone returns a duplicate of the query builder, including all associated steps. It can be
+// Clone returns a duplicate of the EntryQuery builder, including all associated steps. It can be
 // used to prepare common query builders and use them differently after the clone is made.
 func (eq *EntryQuery) Clone() *EntryQuery {
+	if eq == nil {
+		return nil
+	}
 	return &EntryQuery{
 		config:     eq.config,
 		limit:      eq.limit,
 		offset:     eq.offset,
 		order:      append([]OrderFunc{}, eq.order...),
-		unique:     append([]string{}, eq.unique...),
 		predicates: append([]predicate.Entry{}, eq.predicates...),
 		// clone intermediate query.
 		sql:  eq.sql.Clone(),
@@ -231,7 +247,7 @@ func (eq *EntryQuery) Clone() *EntryQuery {
 	}
 }
 
-// GroupBy used to group vertices by one or more fields/columns.
+// GroupBy is used to group vertices by one or more fields/columns.
 // It is often used with aggregate functions, like: count, max, mean, min, sum.
 //
 // Example:
@@ -253,12 +269,13 @@ func (eq *EntryQuery) GroupBy(field string, fields ...string) *EntryGroupBy {
 		if err := eq.prepareQuery(ctx); err != nil {
 			return nil, err
 		}
-		return eq.sqlQuery(), nil
+		return eq.sqlQuery(ctx), nil
 	}
 	return group
 }
 
-// Select one or more fields from the given query.
+// Select allows the selection one or more fields/columns for the given query,
+// instead of selecting all fields in the entity.
 //
 // Example:
 //
@@ -271,18 +288,16 @@ func (eq *EntryQuery) GroupBy(field string, fields ...string) *EntryGroupBy {
 //		Scan(ctx, &v)
 //
 func (eq *EntryQuery) Select(field string, fields ...string) *EntrySelect {
-	selector := &EntrySelect{config: eq.config}
-	selector.fields = append([]string{field}, fields...)
-	selector.path = func(ctx context.Context) (prev *sql.Selector, err error) {
-		if err := eq.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		return eq.sqlQuery(), nil
-	}
-	return selector
+	eq.fields = append([]string{field}, fields...)
+	return &EntrySelect{EntryQuery: eq}
 }
 
 func (eq *EntryQuery) prepareQuery(ctx context.Context) error {
+	for _, f := range eq.fields {
+		if !entry.ValidColumn(f) {
+			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
+		}
+	}
 	if eq.path != nil {
 		prev, err := eq.path(ctx)
 		if err != nil {
@@ -298,18 +313,17 @@ func (eq *EntryQuery) sqlAll(ctx context.Context) ([]*Entry, error) {
 		nodes = []*Entry{}
 		_spec = eq.querySpec()
 	)
-	_spec.ScanValues = func() []interface{} {
+	_spec.ScanValues = func(columns []string) ([]interface{}, error) {
 		node := &Entry{config: eq.config}
 		nodes = append(nodes, node)
-		values := node.scanValues()
-		return values
+		return node.scanValues(columns)
 	}
-	_spec.Assign = func(values ...interface{}) error {
+	_spec.Assign = func(columns []string, values []interface{}) error {
 		if len(nodes) == 0 {
 			return fmt.Errorf("ent: Assign called without calling ScanValues")
 		}
 		node := nodes[len(nodes)-1]
-		return node.assignValues(values...)
+		return node.assignValues(columns, values)
 	}
 	if err := sqlgraph.QueryNodes(ctx, eq.driver, _spec); err != nil {
 		return nil, err
@@ -328,7 +342,7 @@ func (eq *EntryQuery) sqlCount(ctx context.Context) (int, error) {
 func (eq *EntryQuery) sqlExist(ctx context.Context) (bool, error) {
 	n, err := eq.sqlCount(ctx)
 	if err != nil {
-		return false, fmt.Errorf("ent: check existence: %v", err)
+		return false, fmt.Errorf("ent: check existence: %w", err)
 	}
 	return n > 0, nil
 }
@@ -346,6 +360,18 @@ func (eq *EntryQuery) querySpec() *sqlgraph.QuerySpec {
 		From:   eq.sql,
 		Unique: true,
 	}
+	if unique := eq.unique; unique != nil {
+		_spec.Unique = *unique
+	}
+	if fields := eq.fields; len(fields) > 0 {
+		_spec.Node.Columns = make([]string, 0, len(fields))
+		_spec.Node.Columns = append(_spec.Node.Columns, entry.FieldID)
+		for i := range fields {
+			if fields[i] != entry.FieldID {
+				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
+			}
+		}
+	}
 	if ps := eq.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -362,14 +388,14 @@ func (eq *EntryQuery) querySpec() *sqlgraph.QuerySpec {
 	if ps := eq.order; len(ps) > 0 {
 		_spec.Order = func(selector *sql.Selector) {
 			for i := range ps {
-				ps[i](selector, entry.ValidColumn)
+				ps[i](selector)
 			}
 		}
 	}
 	return _spec
 }
 
-func (eq *EntryQuery) sqlQuery() *sql.Selector {
+func (eq *EntryQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(eq.driver.Dialect())
 	t1 := builder.Table(entry.Table)
 	selector := builder.Select(t1.Columns(entry.Columns...)...).From(t1)
@@ -381,7 +407,7 @@ func (eq *EntryQuery) sqlQuery() *sql.Selector {
 		p(selector)
 	}
 	for _, p := range eq.order {
-		p(selector, entry.ValidColumn)
+		p(selector)
 	}
 	if offset := eq.offset; offset != nil {
 		// limit is mandatory for offset clause. We start
@@ -394,7 +420,7 @@ func (eq *EntryQuery) sqlQuery() *sql.Selector {
 	return selector
 }
 
-// EntryGroupBy is the builder for group-by Entry entities.
+// EntryGroupBy is the group-by builder for Entry entities.
 type EntryGroupBy struct {
 	config
 	fields []string
@@ -410,7 +436,7 @@ func (egb *EntryGroupBy) Aggregate(fns ...AggregateFunc) *EntryGroupBy {
 	return egb
 }
 
-// Scan applies the group-by query and scan the result into the given value.
+// Scan applies the group-by query and scans the result into the given value.
 func (egb *EntryGroupBy) Scan(ctx context.Context, v interface{}) error {
 	query, err := egb.path(ctx)
 	if err != nil {
@@ -427,7 +453,8 @@ func (egb *EntryGroupBy) ScanX(ctx context.Context, v interface{}) {
 	}
 }
 
-// Strings returns list of strings from group-by. It is only allowed when querying group-by with one field.
+// Strings returns list of strings from group-by.
+// It is only allowed when executing a group-by query with one field.
 func (egb *EntryGroupBy) Strings(ctx context.Context) ([]string, error) {
 	if len(egb.fields) > 1 {
 		return nil, errors.New("ent: EntryGroupBy.Strings is not achievable when grouping more than 1 field")
@@ -448,7 +475,8 @@ func (egb *EntryGroupBy) StringsX(ctx context.Context) []string {
 	return v
 }
 
-// String returns a single string from group-by. It is only allowed when querying group-by with one field.
+// String returns a single string from a group-by query.
+// It is only allowed when executing a group-by query with one field.
 func (egb *EntryGroupBy) String(ctx context.Context) (_ string, err error) {
 	var v []string
 	if v, err = egb.Strings(ctx); err != nil {
@@ -474,7 +502,8 @@ func (egb *EntryGroupBy) StringX(ctx context.Context) string {
 	return v
 }
 
-// Ints returns list of ints from group-by. It is only allowed when querying group-by with one field.
+// Ints returns list of ints from group-by.
+// It is only allowed when executing a group-by query with one field.
 func (egb *EntryGroupBy) Ints(ctx context.Context) ([]int, error) {
 	if len(egb.fields) > 1 {
 		return nil, errors.New("ent: EntryGroupBy.Ints is not achievable when grouping more than 1 field")
@@ -495,7 +524,8 @@ func (egb *EntryGroupBy) IntsX(ctx context.Context) []int {
 	return v
 }
 
-// Int returns a single int from group-by. It is only allowed when querying group-by with one field.
+// Int returns a single int from a group-by query.
+// It is only allowed when executing a group-by query with one field.
 func (egb *EntryGroupBy) Int(ctx context.Context) (_ int, err error) {
 	var v []int
 	if v, err = egb.Ints(ctx); err != nil {
@@ -521,7 +551,8 @@ func (egb *EntryGroupBy) IntX(ctx context.Context) int {
 	return v
 }
 
-// Float64s returns list of float64s from group-by. It is only allowed when querying group-by with one field.
+// Float64s returns list of float64s from group-by.
+// It is only allowed when executing a group-by query with one field.
 func (egb *EntryGroupBy) Float64s(ctx context.Context) ([]float64, error) {
 	if len(egb.fields) > 1 {
 		return nil, errors.New("ent: EntryGroupBy.Float64s is not achievable when grouping more than 1 field")
@@ -542,7 +573,8 @@ func (egb *EntryGroupBy) Float64sX(ctx context.Context) []float64 {
 	return v
 }
 
-// Float64 returns a single float64 from group-by. It is only allowed when querying group-by with one field.
+// Float64 returns a single float64 from a group-by query.
+// It is only allowed when executing a group-by query with one field.
 func (egb *EntryGroupBy) Float64(ctx context.Context) (_ float64, err error) {
 	var v []float64
 	if v, err = egb.Float64s(ctx); err != nil {
@@ -568,7 +600,8 @@ func (egb *EntryGroupBy) Float64X(ctx context.Context) float64 {
 	return v
 }
 
-// Bools returns list of bools from group-by. It is only allowed when querying group-by with one field.
+// Bools returns list of bools from group-by.
+// It is only allowed when executing a group-by query with one field.
 func (egb *EntryGroupBy) Bools(ctx context.Context) ([]bool, error) {
 	if len(egb.fields) > 1 {
 		return nil, errors.New("ent: EntryGroupBy.Bools is not achievable when grouping more than 1 field")
@@ -589,7 +622,8 @@ func (egb *EntryGroupBy) BoolsX(ctx context.Context) []bool {
 	return v
 }
 
-// Bool returns a single bool from group-by. It is only allowed when querying group-by with one field.
+// Bool returns a single bool from a group-by query.
+// It is only allowed when executing a group-by query with one field.
 func (egb *EntryGroupBy) Bool(ctx context.Context) (_ bool, err error) {
 	var v []bool
 	if v, err = egb.Bools(ctx); err != nil {
@@ -639,27 +673,24 @@ func (egb *EntryGroupBy) sqlQuery() *sql.Selector {
 	columns := make([]string, 0, len(egb.fields)+len(egb.fns))
 	columns = append(columns, egb.fields...)
 	for _, fn := range egb.fns {
-		columns = append(columns, fn(selector, entry.ValidColumn))
+		columns = append(columns, fn(selector))
 	}
 	return selector.Select(columns...).GroupBy(egb.fields...)
 }
 
-// EntrySelect is the builder for select fields of Entry entities.
+// EntrySelect is the builder for selecting fields of Entry entities.
 type EntrySelect struct {
-	config
-	fields []string
+	*EntryQuery
 	// intermediate query (i.e. traversal path).
-	sql  *sql.Selector
-	path func(context.Context) (*sql.Selector, error)
+	sql *sql.Selector
 }
 
-// Scan applies the selector query and scan the result into the given value.
+// Scan applies the selector query and scans the result into the given value.
 func (es *EntrySelect) Scan(ctx context.Context, v interface{}) error {
-	query, err := es.path(ctx)
-	if err != nil {
+	if err := es.prepareQuery(ctx); err != nil {
 		return err
 	}
-	es.sql = query
+	es.sql = es.EntryQuery.sqlQuery(ctx)
 	return es.sqlScan(ctx, v)
 }
 
@@ -670,7 +701,7 @@ func (es *EntrySelect) ScanX(ctx context.Context, v interface{}) {
 	}
 }
 
-// Strings returns list of strings from selector. It is only allowed when selecting one field.
+// Strings returns list of strings from a selector. It is only allowed when selecting one field.
 func (es *EntrySelect) Strings(ctx context.Context) ([]string, error) {
 	if len(es.fields) > 1 {
 		return nil, errors.New("ent: EntrySelect.Strings is not achievable when selecting more than 1 field")
@@ -691,7 +722,7 @@ func (es *EntrySelect) StringsX(ctx context.Context) []string {
 	return v
 }
 
-// String returns a single string from selector. It is only allowed when selecting one field.
+// String returns a single string from a selector. It is only allowed when selecting one field.
 func (es *EntrySelect) String(ctx context.Context) (_ string, err error) {
 	var v []string
 	if v, err = es.Strings(ctx); err != nil {
@@ -717,7 +748,7 @@ func (es *EntrySelect) StringX(ctx context.Context) string {
 	return v
 }
 
-// Ints returns list of ints from selector. It is only allowed when selecting one field.
+// Ints returns list of ints from a selector. It is only allowed when selecting one field.
 func (es *EntrySelect) Ints(ctx context.Context) ([]int, error) {
 	if len(es.fields) > 1 {
 		return nil, errors.New("ent: EntrySelect.Ints is not achievable when selecting more than 1 field")
@@ -738,7 +769,7 @@ func (es *EntrySelect) IntsX(ctx context.Context) []int {
 	return v
 }
 
-// Int returns a single int from selector. It is only allowed when selecting one field.
+// Int returns a single int from a selector. It is only allowed when selecting one field.
 func (es *EntrySelect) Int(ctx context.Context) (_ int, err error) {
 	var v []int
 	if v, err = es.Ints(ctx); err != nil {
@@ -764,7 +795,7 @@ func (es *EntrySelect) IntX(ctx context.Context) int {
 	return v
 }
 
-// Float64s returns list of float64s from selector. It is only allowed when selecting one field.
+// Float64s returns list of float64s from a selector. It is only allowed when selecting one field.
 func (es *EntrySelect) Float64s(ctx context.Context) ([]float64, error) {
 	if len(es.fields) > 1 {
 		return nil, errors.New("ent: EntrySelect.Float64s is not achievable when selecting more than 1 field")
@@ -785,7 +816,7 @@ func (es *EntrySelect) Float64sX(ctx context.Context) []float64 {
 	return v
 }
 
-// Float64 returns a single float64 from selector. It is only allowed when selecting one field.
+// Float64 returns a single float64 from a selector. It is only allowed when selecting one field.
 func (es *EntrySelect) Float64(ctx context.Context) (_ float64, err error) {
 	var v []float64
 	if v, err = es.Float64s(ctx); err != nil {
@@ -811,7 +842,7 @@ func (es *EntrySelect) Float64X(ctx context.Context) float64 {
 	return v
 }
 
-// Bools returns list of bools from selector. It is only allowed when selecting one field.
+// Bools returns list of bools from a selector. It is only allowed when selecting one field.
 func (es *EntrySelect) Bools(ctx context.Context) ([]bool, error) {
 	if len(es.fields) > 1 {
 		return nil, errors.New("ent: EntrySelect.Bools is not achievable when selecting more than 1 field")
@@ -832,7 +863,7 @@ func (es *EntrySelect) BoolsX(ctx context.Context) []bool {
 	return v
 }
 
-// Bool returns a single bool from selector. It is only allowed when selecting one field.
+// Bool returns a single bool from a selector. It is only allowed when selecting one field.
 func (es *EntrySelect) Bool(ctx context.Context) (_ bool, err error) {
 	var v []bool
 	if v, err = es.Bools(ctx); err != nil {
@@ -859,11 +890,6 @@ func (es *EntrySelect) BoolX(ctx context.Context) bool {
 }
 
 func (es *EntrySelect) sqlScan(ctx context.Context, v interface{}) error {
-	for _, f := range es.fields {
-		if !entry.ValidColumn(f) {
-			return &ValidationError{Name: f, err: fmt.Errorf("invalid field %q for selection", f)}
-		}
-	}
 	rows := &sql.Rows{}
 	query, args := es.sqlQuery().Query()
 	if err := es.driver.Query(ctx, query, args, rows); err != nil {

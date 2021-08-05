@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/facebook/ent/dialect/sql"
-	"github.com/facebook/ent/dialect/sql/sqlgraph"
-	"github.com/facebook/ent/schema/field"
+	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/schema/field"
 	"github.com/mattn/entgo-bbs/ent/entry"
 	"github.com/mattn/entgo-bbs/ent/predicate"
 )
@@ -17,24 +17,23 @@ import (
 // EntryUpdate is the builder for updating Entry entities.
 type EntryUpdate struct {
 	config
-	hooks      []Hook
-	mutation   *EntryMutation
-	predicates []predicate.Entry
+	hooks    []Hook
+	mutation *EntryMutation
 }
 
-// Where adds a new predicate for the builder.
+// Where adds a new predicate for the EntryUpdate builder.
 func (eu *EntryUpdate) Where(ps ...predicate.Entry) *EntryUpdate {
-	eu.predicates = append(eu.predicates, ps...)
+	eu.mutation.predicates = append(eu.mutation.predicates, ps...)
 	return eu
 }
 
-// SetContent sets the content field.
+// SetContent sets the "content" field.
 func (eu *EntryUpdate) SetContent(s string) *EntryUpdate {
 	eu.mutation.SetContent(s)
 	return eu
 }
 
-// SetNillableContent sets the content field if the given value is not nil.
+// SetNillableContent sets the "content" field if the given value is not nil.
 func (eu *EntryUpdate) SetNillableContent(s *string) *EntryUpdate {
 	if s != nil {
 		eu.SetContent(*s)
@@ -42,13 +41,13 @@ func (eu *EntryUpdate) SetNillableContent(s *string) *EntryUpdate {
 	return eu
 }
 
-// SetCreatedAt sets the created_at field.
+// SetCreatedAt sets the "created_at" field.
 func (eu *EntryUpdate) SetCreatedAt(t time.Time) *EntryUpdate {
 	eu.mutation.SetCreatedAt(t)
 	return eu
 }
 
-// SetNillableCreatedAt sets the created_at field if the given value is not nil.
+// SetNillableCreatedAt sets the "created_at" field if the given value is not nil.
 func (eu *EntryUpdate) SetNillableCreatedAt(t *time.Time) *EntryUpdate {
 	if t != nil {
 		eu.SetCreatedAt(*t)
@@ -61,7 +60,7 @@ func (eu *EntryUpdate) Mutation() *EntryMutation {
 	return eu.mutation
 }
 
-// Save executes the query and returns the number of rows/vertices matched by this operation.
+// Save executes the query and returns the number of nodes affected by the update operation.
 func (eu *EntryUpdate) Save(ctx context.Context) (int, error) {
 	var (
 		err      error
@@ -123,7 +122,7 @@ func (eu *EntryUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			},
 		},
 	}
-	if ps := eu.predicates; len(ps) > 0 {
+	if ps := eu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
 				ps[i](selector)
@@ -158,17 +157,18 @@ func (eu *EntryUpdate) sqlSave(ctx context.Context) (n int, err error) {
 // EntryUpdateOne is the builder for updating a single Entry entity.
 type EntryUpdateOne struct {
 	config
+	fields   []string
 	hooks    []Hook
 	mutation *EntryMutation
 }
 
-// SetContent sets the content field.
+// SetContent sets the "content" field.
 func (euo *EntryUpdateOne) SetContent(s string) *EntryUpdateOne {
 	euo.mutation.SetContent(s)
 	return euo
 }
 
-// SetNillableContent sets the content field if the given value is not nil.
+// SetNillableContent sets the "content" field if the given value is not nil.
 func (euo *EntryUpdateOne) SetNillableContent(s *string) *EntryUpdateOne {
 	if s != nil {
 		euo.SetContent(*s)
@@ -176,13 +176,13 @@ func (euo *EntryUpdateOne) SetNillableContent(s *string) *EntryUpdateOne {
 	return euo
 }
 
-// SetCreatedAt sets the created_at field.
+// SetCreatedAt sets the "created_at" field.
 func (euo *EntryUpdateOne) SetCreatedAt(t time.Time) *EntryUpdateOne {
 	euo.mutation.SetCreatedAt(t)
 	return euo
 }
 
-// SetNillableCreatedAt sets the created_at field if the given value is not nil.
+// SetNillableCreatedAt sets the "created_at" field if the given value is not nil.
 func (euo *EntryUpdateOne) SetNillableCreatedAt(t *time.Time) *EntryUpdateOne {
 	if t != nil {
 		euo.SetCreatedAt(*t)
@@ -195,7 +195,14 @@ func (euo *EntryUpdateOne) Mutation() *EntryMutation {
 	return euo.mutation
 }
 
-// Save executes the query and returns the updated entity.
+// Select allows selecting one or more fields (columns) of the returned entity.
+// The default is selecting all fields defined in the entity schema.
+func (euo *EntryUpdateOne) Select(field string, fields ...string) *EntryUpdateOne {
+	euo.fields = append([]string{field}, fields...)
+	return euo
+}
+
+// Save executes the query and returns the updated Entry entity.
 func (euo *EntryUpdateOne) Save(ctx context.Context) (*Entry, error) {
 	var (
 		err  error
@@ -262,6 +269,25 @@ func (euo *EntryUpdateOne) sqlSave(ctx context.Context) (_node *Entry, err error
 		return nil, &ValidationError{Name: "ID", err: fmt.Errorf("missing Entry.ID for update")}
 	}
 	_spec.Node.ID.Value = id
+	if fields := euo.fields; len(fields) > 0 {
+		_spec.Node.Columns = make([]string, 0, len(fields))
+		_spec.Node.Columns = append(_spec.Node.Columns, entry.FieldID)
+		for _, f := range fields {
+			if !entry.ValidColumn(f) {
+				return nil, &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
+			}
+			if f != entry.FieldID {
+				_spec.Node.Columns = append(_spec.Node.Columns, f)
+			}
+		}
+	}
+	if ps := euo.mutation.predicates; len(ps) > 0 {
+		_spec.Predicate = func(selector *sql.Selector) {
+			for i := range ps {
+				ps[i](selector)
+			}
+		}
+	}
 	if value, ok := euo.mutation.Content(); ok {
 		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
 			Type:   field.TypeString,
@@ -278,7 +304,7 @@ func (euo *EntryUpdateOne) sqlSave(ctx context.Context) (_node *Entry, err error
 	}
 	_node = &Entry{config: euo.config}
 	_spec.Assign = _node.assignValues
-	_spec.ScanValues = _node.scanValues()
+	_spec.ScanValues = _node.scanValues
 	if err = sqlgraph.UpdateNode(ctx, euo.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{entry.Label}
