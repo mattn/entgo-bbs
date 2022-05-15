@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"log"
 	"net/http"
 
@@ -18,7 +19,12 @@ type Payload struct {
 }
 
 func main() {
-	client, err := ent.Open("sqlite3", "file:bbs.sqlite?cache=shared&_fk=1")
+	var dsn string
+
+	flag.StringVar(&dsn, "dsn", "file:bbs.sqlite?cache=shared&_fk=1", "connection string")
+	flag.Parse()
+
+	client, err := ent.Open("sqlite3", dsn)
 	if err != nil {
 		log.Fatalf("failed opening connection to sqlite: %v", err)
 	}
