@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"flag"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo"
 	"github.com/mattn/entgo-bbs/ent"
@@ -17,6 +19,9 @@ import (
 type Payload struct {
 	Content string `json:"content"`
 }
+
+//go:embed template/index.slim
+var tmpl string
 
 func main() {
 	var dsn string
@@ -34,7 +39,7 @@ func main() {
 		log.Fatalf("failed creating schema resources: %v", err)
 	}
 
-	t, err := slim.ParseFile("template/index.slim")
+	t, err := slim.Parse(strings.NewReader(tmpl))
 	if err != nil {
 		log.Fatal(err)
 	}
