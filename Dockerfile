@@ -6,7 +6,7 @@ COPY --link go.mod go.sum ./
 RUN go mod download
 COPY --link . .
 RUN go install -buildvcs=false -trimpath -ldflags '-w -s' -v
-FROM debian:buster-slim AS stage
+FROM debian:11-slim AS stage
 COPY --from=build-dev /go/bin/entgo-bbs /go/bin/entgo-bbs
 VOLUME ["/data"]
 CMD ["/go/bin/entgo-bbs"]
