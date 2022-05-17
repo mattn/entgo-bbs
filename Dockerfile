@@ -5,8 +5,8 @@ WORKDIR /go/src/app
 COPY --link go.mod go.sum ./
 RUN go mod download
 COPY --link . .
-RUN go install -buildvcs=false -trimpath -ldflags '-w -s' -v
-FROM debian:11-slim AS stage
+RUN go install -buildvcs=false -trimpath -ldflags '-w -s -extldflags "-static"' -v
+FROM scratch AS stage
 COPY --from=build-dev /go/bin/entgo-bbs /go/bin/entgo-bbs
 VOLUME ["/data"]
 CMD ["/go/bin/entgo-bbs"]
